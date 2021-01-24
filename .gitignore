@@ -5,6 +5,7 @@
 *.ipr
 
 ### SBT Files ###
+.bsp
 bin/
 project/target
 project/project
