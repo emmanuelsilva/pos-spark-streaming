@@ -4,7 +4,7 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.{col, count, date_trunc, sum}
 import org.apache.spark.sql.types._
 
-class AggregateSalesStreamingPerDay(salesInputDirectory: String, outputDirectory: String) {
+class AggregateSalesStreamingPerDay(salesInputDirectory: String, checkpoint: String, outputDirectory: String) {
 
   lazy val spark = SparkSession
     .builder()
@@ -27,14 +27,16 @@ class AggregateSalesStreamingPerDay(salesInputDirectory: String, outputDirectory
       .readStream
       .schema(input_sale_schema)
       .format("csv")
+      .option("header","false")
       .option("delimiter", ",")
+      .option("quote", "'")
       .load(salesInputDirectory)
-      .withColumn("hour", date_trunc("hour", col("time")))
+      .withColumn("hour_window", date_trunc("Hour", col("time")))
   }
 
   def aggregateSalesPerHour(salesStreaming: DataFrame) = {
     salesStreaming
-      .groupBy("hour")
+      .groupBy("hour_window")
       .agg(
         count("transactionId").as("qtd"),
         sum("price")
@@ -48,7 +50,7 @@ class AggregateSalesStreamingPerDay(salesInputDirectory: String, outputDirectory
     aggregatedSales
       .writeStream
       .outputMode("complete")
-      .outputMode("complete")
+      .option("checkpointLocation", checkpoint)
       .format("console")
       .start()
       .awaitTermination()
